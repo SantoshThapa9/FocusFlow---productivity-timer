@@ -1,91 +1,63 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Teko, Roboto } from "next/font/google";
+import { useState, useRef, useEffect } from "react";
+import {
+  MdBugReport,
+  MdOutlineSettings,
+  MdMoreVert,
+  MdVerifiedUser,
+} from "react-icons/md";
+import Image from "next/image";
 
 const DEFAULT_BREAK = 5;
 const DEFAULT_SESSION = 25;
 const MIN_LEN = 1;
 const MAX_LEN = 60;
-const teko = Teko({ weight: ["300", "400", "700"], subsets: ["latin"] });
-const roboto = Roboto({
-  weight: ["300", "400", "500", "700"],
-  subsets: ["latin"],
-});
 
 export default function Home() {
-  const [breakLen, setBreakLen] = useState(DEFAULT_BREAK);
-  const [sessionLen, setSessionLen] = useState(DEFAULT_SESSION);
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_SESSION * 60);
-  const [label, setLabel] = useState("Session");
-  const [running, setRunning] = useState(false);
+  const [breakLen, setBreakLen] = useState<number>(DEFAULT_BREAK);
+  const [sessionLen, setSessionLen] = useState<number>(DEFAULT_SESSION);
+  const [timeLeft, setTimeLeft] = useState<number>(DEFAULT_SESSION * 60);
+  const [label, setLabel] = useState<"Session" | "Break">("Session");
+  const [running, setRunning] = useState<boolean>(false);
+  const beepRef = useRef<HTMLAudioElement>(null);
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const beepRef = useRef<HTMLAudioElement | null>(null);
+  const formatTime = (secs: number) =>
+    `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(
+      secs % 60
+    ).padStart(2, "0")}`;
 
-  const mmss = (secs: number) => {
-    const m = String(Math.floor(secs / 60)).padStart(2, "0");
-    const s = String(secs % 60).padStart(2, "0");
-    return `${m}:${s}`;
-  };
+  useEffect(() => {
+    if (!running) return;
 
-  const clearTimer = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
+    const id = setInterval(() => {
+      setTimeLeft((t) => {
+        return t > 0 ? t - 1 : 0;
+      });
+    }, 1000);
 
-  const adjust = (type: "break" | "session", delta: number) => {
-    if (running) return;
-    if (type === "break") {
-      setBreakLen((len) => {
-        const next = Math.min(MAX_LEN, Math.max(MIN_LEN, len + delta));
+    return () => clearInterval(id);
+  }, [running]);
+
+  useEffect(() => {
+    if (timeLeft > 0) return;
+
+    beepRef.current?.play();
+
+    const timeoutId = setTimeout(() => {
+      setLabel((lab) => {
+        const next = lab === "Session" ? "Break" : "Session";
+        setTimeLeft((next === "Session" ? sessionLen : breakLen) * 60);
         return next;
       });
-    } else {
-      setSessionLen((len) => {
-        const next = Math.min(MAX_LEN, Math.max(MIN_LEN, len + delta));
-        if (label === "Session") setTimeLeft(next * 60);
-        return next;
-      });
-    }
-  };
+    }, 1000);
 
-  const toggleRun = () => {
-    if (running) {
-      clearTimer();
-      setRunning(false);
-    } else {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev === 0) {
-            clearTimer();
-            if (beepRef.current) {
-              beepRef.current.currentTime = 0;
-              beepRef.current.play();
-            }
-            setTimeout(() => {
-              setLabel((lab) => {
-                const nextLabel = lab === "Session" ? "Break" : "Session";
-                const nextLength =
-                  nextLabel === "Session" ? sessionLen : breakLen;
-                setTimeLeft(nextLength * 60);
-                toggleRun();
-                return nextLabel;
-              });
-            }, 1000);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      setRunning(true);
-    }
-  };
+    return () => clearTimeout(timeoutId);
+  }, [timeLeft, sessionLen, breakLen]);
+
+  const toggleRun = () => setRunning((r) => !r);
 
   const reset = () => {
-    clearTimer();
     setRunning(false);
     setBreakLen(DEFAULT_BREAK);
     setSessionLen(DEFAULT_SESSION);
@@ -97,132 +69,147 @@ export default function Home() {
     }
   };
 
+  const clamp = (v: number) => Math.min(MAX_LEN, Math.max(MIN_LEN, v));
+  const adjust = (type: "break" | "session", delta: number) => {
+    if (running) return;
+    if (type === "break") {
+      setBreakLen((len) => clamp(len + delta));
+    } else {
+      setSessionLen((len) => {
+        const next = clamp(len + delta);
+        if (label === "Session") setTimeLeft(next * 60);
+        return next;
+      });
+    }
+  };
+  const setPreset = (value: number) => {
+    setSessionLen(value);
+    setTimeLeft(value * 60);
+  };
+
   return (
-    <div
-      id="clock"
-      className={`${roboto.className} min-h-screen flex flex-col items-center justify-center bg-gray-900 p-8 text-gray-100`}
-    >
-      <h1 className="text-5xl font-extrabold mb-12 text-indigo-400 tracking-wide">
-        25 + 5 Clock
-      </h1>
-
-      <div className="flex flex-wrap gap-10 justify-center max-w-3xl w-full mb-12">
-        {/* Break Length */}
-        <section className="bg-gray-800 rounded-2xl p-8 shadow-lg w-64 flex flex-col items-center">
-          <h2
-            id="break-label"
-            className={`${teko.className} text-2xl font-semibold mb-4 text-indigo-300`}
-          >
-            Break Length
-          </h2>
-          <div className="flex items-center justify-center gap-6">
-            <button
-              id="break-decrement"
-              onClick={() => adjust("break", -1)}
-              className="bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-400 rounded-full w-12 h-12 flex items-center justify-center text-3xl select-none transition"
-              aria-label="Decrease Break Length"
-            >
-              &#8722;
-            </button>
-            <span
-              id="break-length"
-              className="text-3xl font-semibold w-12 text-center"
-            >
-              {breakLen}
-            </span>
-            <button
-              id="break-increment"
-              onClick={() => adjust("break", +1)}
-              className="bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-green-400 rounded-full w-12 h-12 flex items-center justify-center text-3xl select-none transition"
-              aria-label="Increase Break Length"
-            >
-              &#43;
-            </button>
+    <main className="h-[100dvh] flex flex-col justify-evenly items-center bg-gradient-to-br  from-slate-900 via-slate-500 to-slate-800 text-white">
+      <header className="w-full top-0 absolute container mx-auto px-4 py-3 border-b border-gray-600">
+        <nav className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Image src="/favicon.ico" width={36} height={36} alt="logo" />
+            <h1 className="font-teko text-2xl">FocusFlow</h1>
           </div>
-        </section>
-
-        {/* Session Length */}
-        <section className="bg-indigo-900 rounded-2xl p-8 shadow-lg w-64 flex flex-col items-center">
-          <h2
-            id="session-label"
-            className="text-2xl font-semibold mb-4 text-indigo-200"
-          >
-            Session Length
-          </h2>
-          <div className="flex items-center justify-center gap-6">
-            <button
-              id="session-decrement"
-              onClick={() => adjust("session", -1)}
-              className="bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-400 rounded-full w-12 h-12 flex items-center justify-center text-3xl select-none transition"
-              aria-label="Decrease Session Length"
-            >
-              &#8722;
-            </button>
-            <span
-              id="session-length"
-              className="text-3xl font-semibold w-12 text-center text-indigo-100"
-            >
-              {sessionLen}
-            </span>
-            <button
-              id="session-increment"
-              onClick={() => adjust("session", +1)}
-              className="bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-green-400 rounded-full w-12 h-12 flex items-center justify-center text-3xl select-none transition"
-              aria-label="Increase Session Length"
-            >
-              &#43;
-            </button>
-          </div>
-        </section>
+          <ul className="flex space-x-4 text-2xl">
+            {[MdBugReport, MdOutlineSettings, MdVerifiedUser, MdMoreVert].map(
+              (Icon, i) => (
+                <li key={i}>
+                  <a
+                    href="https://santosh-gamma.vercel.app/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Icon />
+                  </a>
+                </li>
+              )
+            )}
+          </ul>
+        </nav>
+      </header>
+      <div className="mt-[10dvh] max-w-6xl  flex justify-evenly w-full">
+        <button
+          className="border p-2 rounded-2xl hover:scale-95 "
+          onClick={() => setPreset(25)}
+        >
+          Pomodoro
+        </button>
+        <button
+          className="border p-2 rounded-2xl hover:scale-95 "
+          onClick={() => setPreset(5)}
+        >
+          Short Break
+        </button>
+        <button
+          className="border p-2 rounded-2xl hover:scale-95 "
+          onClick={() => setPreset(15)}
+        >
+          Long Break
+        </button>
       </div>
-
       <section
-        className={`p-12 rounded-3xl shadow-2xl w-96 text-center transition-colors duration-500
-        ${
-          label === "Session"
-            ? "bg-indigo-100 text-indigo-900"
-            : "bg-green-100 text-green-900"
-        }`}
+        className={`
+          w-full max-w-xs 
+          bg-gray-500 
+          rounded-3xl p-8 text-center 
+         border
+          ${
+            label === "Session"
+              ? "text-white bg-slate-700 "
+              : "text-green-300 bg-green-900"
+          }
+        `}
       >
-        <h2
-          id="timer-label"
-          className="text-4xl font-bold mb-6 tracking-wide"
-          aria-live="polite"
-        >
-          {label}
-        </h2>
-        <div
-          id="time-left"
-          className="text-7xl font-extrabold font-mono tracking-widest select-none"
-        >
-          {mmss(timeLeft)}
+        <h2 className="text-3xl font-bold  mb-2">{label}</h2>
+        <div className="text-5xl sm:text-6xl font-mono font-extrabold">
+          {formatTime(timeLeft)}
         </div>
       </section>
 
-      <div className="flex gap-8 mt-12">
+      <div className="w-full container mx-auto px-4 grid grid-cols-2 gap-1 justify-items-center max-w-6xl">
+        {[
+          {
+            title: "Break",
+            length: breakLen,
+            onDec: () => adjust("break", -1),
+            onInc: () => adjust("break", 1),
+          },
+          {
+            title: "Session",
+            length: sessionLen,
+            onDec: () => adjust("session", -1),
+            onInc: () => adjust("session", 1),
+          },
+        ].map(({ title, length, onDec, onInc }) => (
+          <div
+            key={title}
+            className="bg-slate-600 backdrop-blur-sm rounded-2xl p-2 text-center shadow-xl  border max-w-[300px]"
+          >
+            <h3 className={`text-xl mb-3`}>{title}</h3>
+            <div className="flex items-center justify-center space-x-3 sm:space-x-6">
+              <button
+                onClick={onDec}
+                className=" w-10 h-10 border p-2 rounded-2xl hover:scale-95 "
+              >
+                -
+              </button>
+              <span className="text-2xl font-bold text-white">{length}</span>
+              <button
+                onClick={onInc}
+                className=" w-10 h-10 border p-2 rounded-2xl hover:scale-95 "
+              >
+                +
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full container mx-auto px-4 flex flex-row justify-evenly items-center gap-4 mt-10 mb-16">
         <button
-          id="start_stop"
           onClick={toggleRun}
-          className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-400 rounded-xl font-semibold text-xl shadow-lg transition"
-          aria-pressed={running}
+          className="border p-2 rounded-2xl hover:scale-95 w-2xs"
         >
           {running ? "Pause" : "Start"}
         </button>
         <button
-          id="reset"
           onClick={reset}
-          className="px-8 py-4 bg-gray-700 hover:bg-gray-800 focus:ring-4 focus:ring-gray-500 rounded-xl font-semibold text-xl shadow-lg transition"
+          className="border p-2 rounded-2xl hover:scale-95 w-2xs"
         >
           Reset
         </button>
       </div>
 
       <audio
-        id="beep"
         preload="auto"
         ref={beepRef}
         src="https://raw.githubusercontent.com/freeCodeCamp/cdn/master/build/testable-projects-fcc/audio/BeepSound.wav"
       />
-    </div>
+    </main>
   );
 }
