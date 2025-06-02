@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     "focus techniques",
   ],
   metadataBase: new URL("https://focus-flow-productivity-timer.vercel.app"),
-  authors: [{ name: "Santosh Thapa" }],
+  authors: [{ name: "Santosh", url: "https://santosh-gamma.vercel.app/" }],
   creator: "Santosh Thapa",
   publisher: "Santosh Thapa",
   openGraph: {

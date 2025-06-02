@@ -2,6 +2,13 @@
   "name": "productivity-timer",
   "version": "0.1.2",
   "private": true,
+  "description": "Boost your productivity with FocusFlow, a sleek Pomodoro timer app using proven time management techniques.",
+  "author": "Santosh Thapa",
+  "homepage": "https://focus-flow-productivity-timer.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SantoshThapa9/FocusFlow---productivity-timer"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -9,6 +16,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "framer-motion": "^12.15.0",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -16,15 +24,12 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.7",
     "typescript": "^5"
   }
 }
